@@ -1,5 +1,16 @@
+; Simulation to demonstrate/solve quesiton posted by Notch:
+;
+; "Let's say we have a fair lottery where a hundred million people get one
+; ticket each, and a winner is drawn at random each day. The winner stays in
+; the pool even after winning. What are the odds that you win it once before
+; someone else wins it three times (doesn't have to be in a row)?"
+;
+; https://plus.google.com/116872576248355504859/posts/CfTCkstHuhk
+; http://www.reddit.com/r/math/comments/iyicr/notch_posted_this_interesting_probability/
+
+;; WARNING: this takes a ridiculous amount of memory!
+
 (def N 100000000) ; number of people in lottery; assume "I" am player 0
-;(def N 1000)
 
 (defn draw 
   "Select a random integer in the range [0, n)."
