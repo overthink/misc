@@ -69,6 +69,49 @@ object TestApp {
 
     val lifted = ConfigReader.lift3ConfigReader(dummyLen)
     // now what?
+    
+    // Just makin' my method, don't care about no config!
+    // UrlServiceClient => String => String
+    def getBody(urlClient: UrlServiceClient)(url: String): String = {
+      urlClient.getBody(url)
+    }
+    def getHeader(urlClient: UrlServiceClient)(url: String): String = {
+      urlClient.getHeader(url)
+    }
+    def getAllTheData(url: String): String = {
+      val urlClient = new UrlServiceClient(port=5432)
+      getBody(urlClient, url) + getHeader(urlClient, url)
+      
+    }
+    def sayHello: String = {
+      "hello: " + getAllTheData("http://realycool.geocities.com/toky/shrine/23424")
+      
+    }
+    
+    // OH NOZ!!! UrlClient now depends on configuration parameters!!!!!
+    def getAllTheData2(url: String): ConfigReader[String] = {
+      portReader.map { urlClient => getBody(urlClient, url) + getHeader(urlClient, url) }
+    }
+    // getAllTheData has now defered the passing of configuration.
+    // Say hello now becomes:
+    def sayHello2: String = {
+      val config = GlobalConfigGrossness.getConfig
+      "hello: " + getAllTheData2("http://reallycool.geocities.com/tokyo/shrine/23424")(config)
+    }
+    
+    // If we needed to defer computation, we could just keep using map, pushing it all the way up to main
+    def sayHelloThenGoodBye: ConfigReader[String] = {
+      sayHello2.map { str => str + ", goodbye" }
+    }
+    
+    def main(args: Array[String]) {
+      // Look! Caring about config was pushed all the way up to main
+      val config = GlobalConfigGrossness.getConfig
+      sayHelloThenGoodBye(config)
+    }
+    
+    
+    
 
   }
 }
