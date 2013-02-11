@@ -40,11 +40,11 @@
     (map (comp f first) (partition-by f col))))
 
 ; my corrected solution; still fairly pretty
-(defn collapse-good [col pred rep]
+(defn collapse-slow [col pred rep]
   (let [f (fn [[x & more :as xs]] (if (pred x) [rep] xs))]
     (mapcat f (partition-by #(if (pred %) true) col))))
 
-; my 3x faster solution
+; 3x faster than collapse-slow
 (defn collapse [xs pred rep]
   (when-let [x (first xs)]
     (lazy-seq 
@@ -56,7 +56,15 @@
 (def is-wsp? #{\space \tab \newline \return})
 (def test-str "\t    a\r          s\td  \t \r \n         f \r\n")
 
-(dorun
+(println "slow:")
+(time (dotimes [_ 1e6] (dorun (collapse-slow test-str is-wsp? \space))))
+; "Elapsed time: 13484.177938 msecs"
+
+(println "faster:")
+(time (dotimes [_ 1e6] (dorun (collapse test-str is-wsp? \space))))
+; "Elapsed time: 3662.257347 msecs"
+
+#_(dorun
   (->> ["SuperHorst" lazy-collapse
         "Overthink" collapse
         "M Smith" msmith
