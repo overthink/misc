@@ -2,10 +2,25 @@
   "Compojure test with embedded server, no magic."
   (:use compojure.core
         ring.adapter.jetty)
-  (:require [compojure-test.handler :as h])
+  (:require [compojure-test.handler :as h]
+            [compojure.route :as route]
+            [compojure.handler :as handler])
   (:import org.eclipse.jetty.server.Server))
 
 (set! *warn-on-reflection* true)
+
+(def test-app
+  (-> h/print-request
+      (h/add-test-header)))
+
+(defroutes main-routes
+  (GET "/" [] "Served from compojure route")
+  (route/not-found "Page not found"))
+
+(def app
+  (-> (handler/site main-routes)
+      ;;(h/print-request)
+      (h/add-test-header)))
 
 ; Global server reference.  Starts off nil until the server is started.  Set
 ; back to nil when server stopped.
@@ -24,7 +39,7 @@
   [& {:keys [join] :or {join false}}]
   (dosync
     (when-not (ensure server)
-      (ref-set server (run-jetty #'h/dummy-handler 
+      (ref-set server (run-jetty #'app
                                  {:port 3000 
                                   :join? join
                                   :configurator config-server})))))
