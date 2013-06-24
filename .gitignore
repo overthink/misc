@@ -2,3 +2,4 @@ syntax: glob
 *.class
 *.swp
 tags
+.lein-repl-history
