@@ -1,0 +1,89 @@
+#!/usr/bin/env python3
+'''Playing around with Huffman encoding.'''
+import sys
+import fileinput
+import operator
+import math
+from heapq import heappush, heappop
+
+class Node:
+
+    def __init__(self, value, weight, left = None, right = None):
+        self.value = value
+        self.weight = weight
+        self.left = left
+        self.right = right
+
+    def __lt__(self, other):
+        return self.weight < other.weight
+
+    def __str__(self):
+        return 'Node(value={0}, weight={1}, left={2}, right={3})' \
+            .format(self.value, self.weight, str(self.left), str(self.right))
+
+def freqs(s):
+    '''Return a dictionary of character frequencies in s.'''
+    d = {}
+    for c in s:
+        n = d.get(c) or 0
+        d[c] = n + 1
+    return d
+
+def enc_tree(freqs):
+    '''Return a Huffman encoding tree for an alphabet with frequencies given by
+    freqs map (char -> count).'''
+    h = []
+    for char, count in freqs.items():
+        n = Node(char, count)
+        heappush(h, n)
+    done = False
+    while len(h) > 1:
+        first = heappop(h)
+        second = heappop(h)
+        new = Node(None, first.weight + second.weight, first, second)
+        heappush(h, new)
+    return h[0]
+
+def print_tree(node, depth = 0):
+    if node is None:
+        return
+    print('{0}"{1}" - {2}'.format('    ' * depth, node.value, node.weight))
+    print_tree(node.left, depth + 1)
+    print_tree(node.right, depth + 1)
+
+def get_codes(node, prefix = '', acc = {}):
+    '''Return a map of char->binary string for the given tree.'''
+    if node.value:
+        #print('{0} - {1}'.format(node.value, prefix))
+        acc[node.value] = prefix
+    else:
+        get_codes(node.left, prefix + '0', acc)
+        get_codes(node.right, prefix + '1', acc)
+    return acc
+
+def encode(codes, text):
+    '''Return the binary string encoding of text using codes dictionary. Yes a string.'''
+    items = [codes[c] for c in text]
+    return ''.join(items)
+
+def main():
+    # this seems awful, but wth
+    lines = [x for x in fileinput.input()]
+    text = ''.join(lines)
+
+    fs = freqs(text)
+    tree = enc_tree(fs)
+    print_tree(tree)
+
+    codes = get_codes(tree)
+    # sort by lenth, then by lexico
+    for x in sorted(codes.items(), key=lambda x: (len(x[1]), x[1])):
+        print(x)
+
+    bits = encode(codes, text)
+    print(bits)
+    print('original:            {} bytes'.format(len(text))) # assumes char==byte
+    print('compressed: {0} bits {1} bytes)'.format(len(bits), math.ceil(len(bits)/8)))
+
+if __name__ == '__main__':
+    main()
