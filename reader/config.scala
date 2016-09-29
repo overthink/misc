@@ -52,6 +52,7 @@ object TestApp {
     val hostnameReader = new ConfigReader[String] { def apply(c: Configuration) = c.hostname }
     val portReader = new ConfigReader[Int] { def apply(c: Configuration) = c.port }
     val pathReader = new ConfigReader[String] { def apply(c: Configuration) = c.path }
+    val dbHostReader = new ConfigReader[Int] { def apply(c: Configuration) = c.dbHost }
 
     val urlReader =
       for {
@@ -69,6 +70,77 @@ object TestApp {
 
     val lifted = ConfigReader.lift3ConfigReader(dummyLen)
     // now what?
+    
+    
+    ////////////////////////////////////////////////////////
+    // Just makin' my method, don't care about no config!
+    // UrlServiceClient => String => String
+    def getBody(urlClient: UrlServiceClient)(url: String): String = {
+      urlClient.getBody(url)
+    }
+    def getHeader(urlClient: UrlServiceClient)(url: String): String = {
+      urlClient.getHeader(url)
+    }
+    def getAllTheData(url: String): String = {
+      val urlClient = new UrlServiceClient(port=5432)
+      getBody(urlClient, url) + getHeader(urlClient, url)
+      
+    }
+    def sayHello: String = {
+      "hello: " + getAllTheData("http://realycool.geocities.com/toky/shrine/23424")
+      
+    }
+    
+    // OH NOZ!!! UrlClient now depends on configuration parameters!!!!!
+    def getAllTheData2(url: String): ConfigReader[String] = {
+      portReader.map { port => val client = new UrlClient(port); getBody(client)(url) + getHeader(client)(url) }
+    }
+    // getAllTheData has now defered the passing of configuration.
+    // Say hello now becomes:
+    def sayHello2: String = {
+      val config = GlobalConfigGrossness.getConfig
+      "hello: " + getAllTheData2("http://reallycool.geocities.com/tokyo/shrine/23424")(config)
+    }
+    
+    // If we needed to defer computation, we could just keep using map, pushing it all the way up to main
+    def sayHelloThenGoodBye: ConfigReader[String] = {
+      sayHello2.map { str => str + ", goodbye" }
+    }
+    
+    def getFromDb(db: DBConnection)(smart: Boolean): String = {
+      // ready for sql injection
+      db.select("monad").from("patterns").where("understand = %s".format(smart)).toString
+    }
+    
+    def sayHelloThenGoodByeThenDb: ConfigReader[String] = {
+      // This function requires flatMap and here's why (without resorting to for comprehensions)
+      // We want to insert the sayHello2 message. However the signature for
+      // sayHello2 is: () => ConfigReader[String]
+      // Therefore, we'll need to map its contents to the result from `getFromDb`
+      // However, this means that the function signature in dbHost.map would be: Int => ConfigReader[String]
+      // So, we need to use flatMap instead.
+      dbHost.flatMap { dbHost => 
+        val dbConnection = new DBConnection(dbHost)
+        val dbMsg = getFromDb(dbConnection)
+        // Note: sayHelloThenGoodbye has sig: () => ConfigReader[String]
+        // We want to get String out of it
+        sayHello2().map { hello2String => hello2String + getFromDb(dbConnection) }
+      }
+      /** Alternatively we could have written:
+       * for { 
+       *   hello2String <- sayHello2 
+       *   dbHost <- dbHostReader
+       *   dbConnection <- new DBConnection(dbHost) // can I do this?
+       * } yield (hello2String + getFromDb(dbConnection)
+       */
+    }
+    
+    def main(args: Array[String]) {
+      // Look! Caring about config was pushed all the way up to main
+      val config = GlobalConfigGrossness.getConfig
+      sayHelloThenGoodBye(config)
+      sayHelloThenGoodByeThenDb(config)
+    }
 
   }
 }
